@@ -1,0 +1,8 @@
+// Data memory image for main_test.v (one 32-bit word per line)
+AAAAAAAA // 0x00
+BBBBBBBB // 0x04
+00000010 // 0x08  pointer used as base address by the program
+CAFEF00D // 0x0C
+DEADBEEF // 0x10
+12345678 // 0x14
+@3F 00000000 // pad last word so iverilog sees the full 64-word range
