@@ -21,7 +21,6 @@ module main_test;
         end
     endtask
 
-    // trace each instruction as it executes (sampled on the clock edge that retires it)
     always @(posedge clk) if (!rst)
         $display("  [t=%0t] pc=%h instr=%h", $time, dut.pc, dut.instruction);
 
@@ -30,10 +29,9 @@ module main_test;
         $dumpvars(0, main_test);
         $display("== main_test (lw) ==");
 
-        repeat (2) @(negedge clk);   // hold reset for 2 cycles
+        repeat (2) @(negedge clk);
         rst = 0;
-
-        repeat (5) @(posedge clk);   // 5 instructions, 1 per cycle
+        repeat (5) @(negedge clk);
         #1;
 
         check(dut.regfile_inst.registers[9],  32'h00000010, "x9  <- lw x9, 8(x0)");

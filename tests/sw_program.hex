@@ -1,0 +1,9 @@
+// Program checks store word semantics and preserves lw regression coverage.
+00802483 // 0x00: lw x9, 8(x0)      -> x9 = 0x10 base pointer
+00002503 // 0x04: lw x10, 0(x0)    -> x10 = mem[0x00] = 0xAAAAAAAA
+00A4A623 // 0x08: sw x10, 12(x9)  -> mem[0x1C] = 0xAAAAAAAA
+FFC4A583 // 0x0C: lw x11, -4(x9)  -> x11 = mem[0x0C] = 0xCAFEF00D
+00B4A023 // 0x10: sw x11, 0(x9)   -> mem[0x10] = 0xCAFEF00D
+0044A603 // 0x14: lw x12, 4(x9)   -> x12 = mem[0x14] = 0x12345678
+00C4A223 // 0x18: sw x12, 4(x9)   -> mem[0x14] = 0x12345678
+@3F 00000000

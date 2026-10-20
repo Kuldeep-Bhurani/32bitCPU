@@ -1,17 +1,16 @@
-
 ---
 
 ## Project layout
 
 ```
 8BitCPU/
-├── main.v                  # top level: `include`s every sub-module and wires the datapath
+├── main.v                  # top level: includes sub-modules and wires the datapath
 ├── regfile.v               # register file (x0 hard-wired to 0)
 ├── instruction_memory.v    # word-addressed ROM, loaded from a hex file
 ├── data_memory.v           # word-addressed RAM, loaded from a hex file
-├── signext.v               # immediate extractor / sign extender
+├── signext.v               # I-type and S-type immediate extractor / sign extender
 ├── alu.v                   # basic ALU (add / sub / and / or + zero flag)
-├── control.v               # decoder / control unit
+├── control.v               # decoder / control unit for lw and sw
 ├── Makefile
 └── tests/
     ├── regfile_test.v
@@ -20,47 +19,51 @@
     ├── signext_test.v
     ├── alu_test.v
     ├── control_test.v
-    ├── main_test.v         # runs a real lw program on the whole core
-    ├── lw_program.hex      # instruction memory image used by the tests
-    └── lw_data.hex         # data memory image used by the tests
+    ├── main_test.v          # full-core lw regression test
+    ├── sw_test.v            # full-core sw integration test
+    ├── lw_program.hex
+    ├── sw_program.hex
+    └── lw_data.hex
 ```
 
-Every `.v` file is wrapped in an include guard, so `main.v` pulls in all sub-parts
-and each testbench only includes what it tests.
+Every `.v` file is wrapped in an include guard, so `main.v` pulls in the sub-parts and each testbench includes the module it tests.
 
-## Datapath for `lw`
+## Datapath for `lw` and `sw`
 
-```
-            +-----+  instr   +---------+ rs1 +----------+  src1  +-----+ addr  +------+
- PC ------->|imem |--------->| decode  |---->| regfile  |------->|     |------>| dmem |
- ^          +-----+          | control |     |          | src2   | ALU |       +------+
- |                           +---------+     +----------+   +--->|     |          |
- +-- PC + 4                    imm_src |          ^          |    +-----+          |
-                                       v          |      alu_src                   |
-                                  +---------+     |  (imm) --+                     |
-                                  | signext |-----+--------------                  |
-                                  +---------+     +---- write-back (result_src) <--+
-```
+For both instructions, the ALU calculates the effective address, `registers[rs1] + sign_extended_immediate`. For `lw`, data memory's asynchronous read feeds the write-back mux and the destination register is written on the rising clock edge. For `sw`, the register file's second read port supplies `registers[rs2]` to the data-memory write port, and the memory write enable is asserted on the rising clock edge.
 
-Control signals generated for `lw` (opcode `0000011`, funct3 `010`):
+Control signals:
 
-| reg_write | imm_src | alu_src | mem_write | result_src | alu_control |
-| --------- | ------- | ------- | --------- | ---------- | ----------- |
-| 1         | 00 (I)  | 1 (imm) | 0         | 1 (memory) | 000 (add)   |
+| Instruction | Opcode | funct3 | reg_write | imm_src | alu_src | mem_write | result_src | ALU |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `lw` | `0000011` | `010` | 1 | `00` (I-type) | 1 (imm) | 0 | 1 (memory) | ADD |
+| `sw` | `0100011` | `010` | 0 | `01` (S-type) | 1 (imm) | 1 | 0 (unused) | ADD |
+| Unsupported instruction | — | — | 0 | `00` | 0 | 0 | 0 | ADD/default |
 
-What happens in the single cycle for `lw x6, -4(x9)` (`0xFFC4A303`):
+### `lw` behavior
 
-1. `instruction_memory` fetches the word at `pc`.
-2. `control` sees `op = 0000011`, `funct3 = 010` and raises `reg_write`, `alu_src`, `result_src`.
-3. `regfile` reads `x9`; `signext` turns `111111111100` into `0xFFFFFFFC` (-4).
-4. `alu` adds them: `address = x9 + (-4)`.
-5. `data_memory` returns the word at that address (the two low address bits are ignored, `lw` is word-aligned).
-6. On the next rising clock edge the word is written into `x6` and `pc` becomes `pc + 4`.
+For `lw x6, -4(x9)` (`0xFFC4A303`):
 
-Writes to `x0` are ignored, and loads with any other funct3 (`lb`, `lh`, `lbu`, `lhu`) are
-treated as no-ops until they are implemented.
+1. `instruction_memory` fetches the instruction from the current PC.
+2. `control` recognizes opcode `0000011` with `funct3=010` and selects I-type immediate extraction.
+3. `signext` sign-extends the 12-bit immediate `-4`.
+4. The ALU adds the contents of `x9` and `-4` to form the byte address.
+5. `data_memory` returns the addressed 32-bit word.
+6. On the rising clock edge, the result is written to `x6` and the PC advances by four.
 
-## Usage: running `lw`
+### `sw` behavior
+
+For `sw x10, 12(x9)` (`0x00A4A623`):
+
+1. `control` recognizes opcode `0100011` with `funct3=010` and selects the S-type immediate.
+2. `signext` reconstructs the split immediate from `instruction[31:25]` and `instruction[11:7]`, then sign-extends it.
+3. The ALU computes the byte address `x9 + 12`.
+4. The value from register `x10` is placed on `data_memory.write_data`.
+5. At the rising clock edge, the word is stored in data memory. No register is written (`reg_write=0`).
+
+The two low address bits are ignored for memory indexing, so the current core supports aligned word accesses. Other load/store widths such as `lb`, `lh`, `sb`, and `sh` are not implemented and are treated as no-ops.
+
+## Usage: building and testing
 
 ### Requirements
 
@@ -75,10 +78,11 @@ sudo apt install iverilog gtkwave      # Debian / Ubuntu
 Run everything from the repository root (the testbenches load `tests/*.hex` relative to it):
 
 ```bash
-make                    # run all 7 testbenches
-make main_test          # full-core lw test only
-make regfile_test       # or any single sub-part: alu_test, control_test, signext_test, ...
-make cpu                # just compile the full core (main.v)
+make                    # run all 8 testbenches
+make main_test          # full-core lw regression test
+make sw_test            # full-core sw test
+make regfile_test       # or a single sub-part test
+make cpu                # compile the full core (main.v)
 make wave               # run main_test and open the waveform in GTKWave
 make clean
 ```
@@ -87,69 +91,28 @@ Without `make`:
 
 ```bash
 mkdir -p build
-iverilog -g2012 -Wall -I. -o build/main_test tests/main_test.v
-vvp build/main_test
+iverilog -g2012 -Wall -I. -o build/sw_test tests/sw_test.v
+vvp build/sw_test
 ```
 
-Expected `main_test` output:
+### Test program for `lw`
 
-```
-== main_test (lw) ==
-  [t=25000] pc=00000000 instr=00802483
-  [t=35000] pc=00000004 instr=ffc4a303
-  [t=45000] pc=00000008 instr=0004a383
-  [t=55000] pc=0000000c instr=0004a003
-  [t=65000] pc=00000010 instr=0044a503
-  PASS x9  <- lw x9, 8(x0) = 00000010
-  PASS x6  <- lw x6, -4(x9) = cafef00d
-  PASS x7  <- lw x7, 0(x9) = deadbeef
-  PASS x0 ignored lw x0, 0(x9) = 00000000
-  PASS x10 <- lw x10, 4(x9) = 12345678
-  PASS pc after 5 instructions = 00000014
-main_test: ALL TESTS PASSED
+`tests/lw_program.hex` holds one 32-bit instruction per line. It checks positive and negative offsets, normal register writes, and that writes to `x0` are ignored. `tests/lw_data.hex` initializes data memory with known values for these cases.
+
+### Test program for `sw`
+
+`tests/sw_program.hex` exercises both positive-offset stores and a zero-offset store, with data loaded into source registers first. The integration test checks the stored words directly in the data-memory array after execution and confirms the PC advances as expected.
+
+For `sw rs2, imm(rs1)`, the S-type encoding is:
+
+```text
+imm[11:5] | rs2 | rs1 | 010 | imm[4:0] | 0100011
 ```
 
-### The test program
+Example: `sw x10, 12(x9)` encodes as `0x00A4A623`. Use byte addresses; the low two address bits are ignored for word indexing. Memory writes are synchronous, so check stored values after the relevant rising clock edge.
 
-`tests/lw_program.hex` holds one 32-bit instruction per line (hex, `//` comments allowed):
+Both memories are 64 words (256 bytes) by default. Hex files are read from the current working directory, so run the commands above from the repository root.
 
-```
-00802483 // 0x00: lw x9,  8(x0)   -> x9 = mem[0x08] = 0x10 (a pointer)
-FFC4A303 // 0x04: lw x6, -4(x9)   -> x6 = mem[0x0C]  (the README example)
-0004A383 // 0x08: lw x7,  0(x9)   -> x7 = mem[0x10]
-0004A003 // 0x0C: lw x0,  0(x9)   -> must NOT change x0
-0044A503 // 0x10: lw x10, 4(x9)   -> x10 = mem[0x14]
-```
+## Validation note
 
-`tests/lw_data.hex` is the data memory it reads from:
-
-```
-AAAAAAAA // 0x00
-BBBBBBBB // 0x04
-00000010 // 0x08  pointer used as base address
-CAFEF00D // 0x0C
-DEADBEEF // 0x10
-12345678 // 0x14
-```
-
-Since `lw` is the only instruction so far, the program first loads a pointer into `x9`
-and then uses it as the base register, no `addi` needed.
-
-### Running your own `lw` program
-
-1. Encode your instruction as I-type: `imm[11:0] | rs1 | 010 | rd | 0000011`
-   (e.g. `lw x6, -4(x9)` is `111111111100 01001 010 00110 0000011` = `0xFFC4A303`).
-2. Put the words in a hex file, and the data you want to read in another.
-3. Point the core at them with the `IMEM_FILE` / `DMEM_FILE` parameters:
-
-```verilog
-main #(.IMEM_FILE("my_program.hex"),
-       .DMEM_FILE("my_data.hex")) cpu (.clk(clk), .rst(rst));
-```
-
-4. Hold `rst` high for a couple of clock cycles, release it, and the core executes one
-   instruction per clock cycle starting at address `0x0`.
-
-Both memories are 64 words (256 bytes) by default; change the `ADDR_BITS` parameter of
-`instruction_memory` / `data_memory` for more. Hex files end with an `@3F 00000000` line
-only so iverilog doesn't warn about a partially filled memory.
+The instruction encodings and RTL wiring were statically checked while preparing this patch. Icarus Verilog was unavailable in the preparation environment, so run `make clean && make` locally before opening a pull request.

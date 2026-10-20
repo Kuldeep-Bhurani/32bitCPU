@@ -24,11 +24,17 @@ module signext_test;
         $dumpvars(0, signext_test);
         $display("== signext_test ==");
 
-        instr = 32'hFFC4A303; #1 check(imm, 32'hFFFFFFFC, "imm = -4");
-        instr = 32'h00802483; #1 check(imm, 32'h00000008, "imm = +8");
-        instr = 32'h7FF4A303; #1 check(imm, 32'h000007FF, "imm = +2047 (max)");
-        instr = 32'h8004A303; #1 check(imm, 32'hFFFFF800, "imm = -2048 (min)");
-        instr = 32'h0004A303; #1 check(imm, 32'h00000000, "imm = 0");
+        imm_src = 2'b00;
+        instr = 32'hFFC4A303; #1 check(imm, 32'hFFFFFFFC, "I-type imm = -4");
+        instr = 32'h00802483; #1 check(imm, 32'h00000008, "I-type imm = +8");
+        instr = 32'h7FF4A303; #1 check(imm, 32'h000007FF, "I-type imm = +2047");
+        instr = 32'h8004A303; #1 check(imm, 32'hFFFFF800, "I-type imm = -2048");
+        instr = 32'h0004A303; #1 check(imm, 32'h00000000, "I-type imm = 0");
+
+        imm_src = 2'b01; instr = 32'h0054A623; #1;
+        check(imm, 32'h0000000C, "S-type imm = +12");
+        instr = 32'hFE54AE23; #1;
+        check(imm, 32'hFFFFFFFC, "S-type imm = -4");
 
         if (errors == 0) $display("signext_test: ALL TESTS PASSED");
         else             $display("signext_test: %0d FAILURE(S)", errors);

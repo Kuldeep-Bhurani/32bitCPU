@@ -28,7 +28,6 @@ module control_test;
         $dumpvars(0, control_test);
         $display("== control_test ==");
 
-        // lw : opcode 0000011, funct3 010
         op = 7'b0000011; funct3 = 3'b010; #1;
         check(reg_write,   1, "lw reg_write");
         check(imm_src,     0, "lw imm_src (I-type)");
@@ -37,14 +36,21 @@ module control_test;
         check(result_src,  1, "lw result_src (memory)");
         check(alu_control, 0, "lw alu_control (add)");
 
-        // lb shares the opcode but is not implemented : must be a no-op
-        funct3 = 3'b000; #1;
-        check(reg_write,   0, "lb reg_write (not implemented)");
+        op = 7'b0100011; funct3 = 3'b010; #1;
+        check(reg_write,   0, "sw reg_write disabled");
+        check(imm_src,     1, "sw imm_src (S-type)");
+        check(alu_src,     1, "sw alu_src (immediate address)");
+        check(mem_write,   1, "sw mem_write");
+        check(result_src,  0, "sw result_src unused");
+        check(alu_control, 0, "sw alu_control (add)");
 
-        // unknown opcode : must be a no-op
+        funct3 = 3'b000; #1;
+        check(reg_write, 0, "sb reg_write (not implemented)");
+        check(mem_write, 0, "sb mem_write (not implemented)");
+
         op = 7'b1111111; funct3 = 3'b010; #1;
-        check(reg_write,   0, "unknown op reg_write");
-        check(mem_write,   0, "unknown op mem_write");
+        check(reg_write, 0, "unknown op reg_write");
+        check(mem_write, 0, "unknown op mem_write");
 
         if (errors == 0) $display("control_test: ALL TESTS PASSED");
         else             $display("control_test: %0d FAILURE(S)", errors);
