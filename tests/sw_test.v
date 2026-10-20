@@ -39,11 +39,16 @@ module sw_test;
 
         check(dut.dmem.mem[7], 32'hAAAAAAAA, "sw x10, 12(x9) writes byte address 0x1C");
         check(dut.dmem.mem[4], 32'hCAFEF00D, "sw x11, 0(x9) writes byte address 0x10");
+        check(dut.dmem.mem[5], 32'h12345678, "sw x12, 4(x9) writes byte address 0x14");
         check(dut.regfile_inst.registers[0], 32'h00000000, "x0 remains zero");
         check(dut.pc, 32'h0000001C, "PC after 7 instructions");
 
-        if (errors == 0) $display("sw_test: ALL TESTS PASSED");
-        else             $display("sw_test: %0d FAILURE(S)", errors);
-        $finish;
+        if (errors == 0) begin
+    $display("sw_test: ALL TESTS PASSED");
+    $finish;
+end else begin
+    $display("sw_test: %0d FAILURE(S)", errors);
+    $fatal(1, "sw_test failed");
+end
     end
 endmodule
