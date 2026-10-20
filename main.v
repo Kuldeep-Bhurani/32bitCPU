@@ -45,6 +45,7 @@ module main #(
 
     // ---------------- decode ----------------
     wire [6:0] op     = instruction[6:0];
+    wire [6:0] funct7 = instruction[31:25];
     wire [4:0] rd     = instruction[11:7];
     wire [2:0] funct3 = instruction[14:12];
     wire [4:0] rs1    = instruction[19:15];
@@ -57,6 +58,7 @@ module main #(
     control ctrl (
         .op          (op),
         .funct3      (funct3),
+        .funct7      (funct7),
         .reg_write   (reg_write),
         .imm_src     (imm_src),
         .alu_src     (alu_src),

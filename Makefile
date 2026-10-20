@@ -1,6 +1,6 @@
 IVERILOG = iverilog -g2012 -Wall -I.
 TESTS    = regfile_test instruction_memory_test data_memory_test \
-           signext_test alu_test control_test main_test sw_test
+           signext_test alu_test control_test main_test sw_test r_type_test
 
 .PHONY: all cpu wave clean $(TESTS)
 

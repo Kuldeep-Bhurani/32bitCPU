@@ -33,6 +33,9 @@ module alu_test;
                                                               check({31'b0, zero}, 32'h0, "zero flag clear");
         ctrl = 3'b010; a = 32'hF0F0F0F0; b = 32'hFF00FF00; #1 check(y, 32'hF000F000, "AND");
         ctrl = 3'b011; a = 32'hF0F0F0F0; b = 32'h0F000F00; #1 check(y, 32'hFFF0FFF0, "OR");
+        ctrl = 3'b010; a = 32'hAAAAAAAA; b = 32'hCAFEF00D; #1 check(y, 32'h8AAAA008, "AND R-type vector");
+        ctrl = 3'b011;                                       #1 check(y, 32'hEAFEFAAF, "OR  R-type vector");
+        ctrl = 3'b000;                                       #1 check(y, 32'h75A99AB7, "ADD R-type vector");
         ctrl = 3'b111; a = 32'h1;        b = 32'h1;        #1 check(y, 32'h0, "unknown op -> 0");
 
         if (errors == 0) $display("alu_test: ALL TESTS PASSED");

@@ -3,10 +3,10 @@
 `timescale 1ns/1ps
 // ---------------------------------------------------------------
 // alu.v : basic ALU
-//   alu_control 000 : ADD   (used by lw for address = rs1 + imm)
+//   alu_control 000 : ADD   (lw/sw address = rs1 + imm, R-type add)
 //               001 : SUB
-//               010 : AND
-//               011 : OR
+//               010 : AND  (R-type and)
+//               011 : OR   (R-type or)
 // ---------------------------------------------------------------
 module alu (
     input  wire [31:0] src1,

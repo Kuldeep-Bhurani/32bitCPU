@@ -1,3 +1,5 @@
+# 8bitcpu
+
 ---
 
 ## Project layout
@@ -10,7 +12,7 @@
 ├── data_memory.v           # word-addressed RAM, loaded from a hex file
 ├── signext.v               # I-type and S-type immediate extractor / sign extender
 ├── alu.v                   # basic ALU (add / sub / and / or + zero flag)
-├── control.v               # decoder / control unit for lw and sw
+├── control.v               # decoder / control unit for lw, sw and R-type add/and/or
 ├── Makefile
 └── tests/
     ├── regfile_test.v
@@ -21,6 +23,8 @@
     ├── control_test.v
     ├── main_test.v          # full-core lw regression test
     ├── sw_test.v            # full-core sw integration test
+    ├── r_type_test.v        # full-core R-type add/and/or test
+    ├── r_program.hex
     ├── lw_program.hex
     ├── sw_program.hex
     └── lw_data.hex
@@ -63,6 +67,20 @@ For `sw x10, 12(x9)` (`0x00A4A623`):
 
 The two low address bits are ignored for memory indexing, so the current core supports aligned word accesses. Other load/store widths such as `lb`, `lh`, `sb`, and `sh` are not implemented and are treated as no-ops.
 
+## R-type instructions: `add`, `and`, `or`
+
+R-type ops read `rs1` and `rs2`, send them to the ALU (`alu_src=0`), and write the ALU result to `rd` (`result_src=0`, `reg_write=1`). `control` now takes `funct7` (`instruction[31:25]`) and decodes only `funct7=0000000`; other encodings (e.g. `sub`) are no-ops.
+
+| Instruction | Opcode | funct3 | funct7 | ALU control |
+| --- | --- | --- | --- | --- |
+| `add rd, rs1, rs2` | `0110011` | `000` | `0000000` | `000` ADD |
+| `and rd, rs1, rs2` | `0110011` | `111` | `0000000` | `010` AND |
+| `or rd, rs1, rs2` | `0110011` | `110` | `0000000` | `011` OR |
+
+Encoding: `funct7 | rs2 | rs1 | funct3 | rd | 0110011`. Examples: `add x7, x5, x6` = `0x006283B3`, `and x8, x5, x6` = `0x0062F433`, `or x9, x5, x6` = `0x0062E4B3`.
+
+Usage: put the encoded words in a hex file (one per line, first load operands with `lw`), e.g. `tests/r_program.hex`, and run `make r_type_test`. With `x5=0xAAAAAAAA`, `x6=0xCAFEF00D` it checks `x7=0x75A99AB7` (add), `x8=0x8AAAA008` (and), `x9=0xEAFEFAAF` (or), a chained `and x10,x7,x9`=`0x60A89AA7`, and that `add x0,...` leaves `x0` at 0. `alu_test` and `control_test` also cover the new paths.
+
 ## Usage: building and testing
 
 ### Requirements
@@ -78,9 +96,10 @@ sudo apt install iverilog gtkwave      # Debian / Ubuntu
 Run everything from the repository root (the testbenches load `tests/*.hex` relative to it):
 
 ```bash
-make                    # run all 8 testbenches
+make                    # run all 9 testbenches
 make main_test          # full-core lw regression test
 make sw_test            # full-core sw test
+make r_type_test        # full-core add/and/or test
 make regfile_test       # or a single sub-part test
 make cpu                # compile the full core (main.v)
 make wave               # run main_test and open the waveform in GTKWave
@@ -116,8 +135,6 @@ Both memories are 64 words (256 bytes) by default. Hex files are read from the c
 ## Validation note
 
 The RTL and instruction encodings were validated with Icarus Verilog 11.0.
-
-The full regression suite was run locally on Windows using Icarus Verilog and VVP. All 8 testbenches passed:
 
 - `regfile_test`
 - `instruction_memory_test`

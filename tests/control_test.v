@@ -4,12 +4,13 @@
 module control_test;
     reg  [6:0] op = 0;
     reg  [2:0] funct3 = 0;
+    reg  [6:0] funct7 = 0;
     wire       reg_write, alu_src, mem_write, result_src;
     wire [1:0] imm_src;
     wire [2:0] alu_control;
     integer errors = 0;
 
-    control dut (.op(op), .funct3(funct3), .reg_write(reg_write), .imm_src(imm_src),
+    control dut (.op(op), .funct3(funct3), .funct7(funct7), .reg_write(reg_write), .imm_src(imm_src),
                  .alu_src(alu_src), .mem_write(mem_write), .result_src(result_src),
                  .alu_control(alu_control));
 
@@ -47,6 +48,23 @@ module control_test;
         funct3 = 3'b000; #1;
         check(reg_write, 0, "sb reg_write (not implemented)");
         check(mem_write, 0, "sb mem_write (not implemented)");
+
+        // R-type: add / and / or
+        op = 7'b0110011; funct7 = 7'b0000000; funct3 = 3'b000; #1;
+        check(reg_write,   1, "add reg_write");
+        check(alu_src,     0, "add alu_src (rs2)");
+        check(mem_write,   0, "add mem_write");
+        check(result_src,  0, "add result_src (ALU)");
+        check(alu_control, 0, "add alu_control");
+        funct3 = 3'b111; #1;
+        check(reg_write,   1, "and reg_write");
+        check(alu_control, 2, "and alu_control");
+        funct3 = 3'b110; #1;
+        check(reg_write,   1, "or reg_write");
+        check(alu_control, 3, "or alu_control");
+        funct7 = 7'b0100000; funct3 = 3'b000; #1;
+        check(reg_write,   0, "sub (funct7=0100000) not implemented");
+        funct7 = 7'b0000000;
 
         op = 7'b1111111; funct3 = 3'b010; #1;
         check(reg_write, 0, "unknown op reg_write");

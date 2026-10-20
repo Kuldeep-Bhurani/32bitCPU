@@ -1,0 +1,9 @@
+// R-type test: add / and / or (x5=0xAAAAAAAA, x6=0xCAFEF00D)
+00002283 // 0x00: lw x5, 0(x0)
+00C02303 // 0x04: lw x6, 12(x0)
+006283B3 // 0x08: add x7, x5, x6
+0062F433 // 0x0C: and x8, x5, x6
+0062E4B3 // 0x10: or x9, x5, x6
+00628033 // 0x14: add x0, x5, x6
+0093F533 // 0x18: and x10, x7, x9
+@3F 00000000
