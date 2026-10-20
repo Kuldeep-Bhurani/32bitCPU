@@ -147,3 +147,7 @@ The RTL and instruction encodings were validated with Icarus Verilog 11.0.
 
 The `sw_test` integration test specifically verifies all three `sw` instructions, including S-type immediate handling, effective-address calculation, memory writes, preservation of `x0`, and sequential PC behavior.
 
+## `beq` instruction
+
+`beq rs1, rs2, offset` is supported for `funct3=000`. The core subtracts the two register values and branches when the ALU zero flag is set. The signed B-type offset is reconstructed from the instruction and added to the current PC; otherwise the PC advances by four. `make beq_test` runs a core-level check of both a not-taken branch and a taken branch that skips an instruction.
+

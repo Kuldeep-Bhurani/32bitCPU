@@ -30,11 +30,6 @@ module main #(
     reg  [31:0] pc;
     wire [31:0] pc_plus4 = pc + 32'd4;
 
-    always @(posedge clk) begin
-        if (rst) pc <= 32'b0;
-        else     pc <= pc_plus4;
-    end
-
     // ---------------- fetch ----------------
     wire [31:0] instruction;
 
@@ -51,7 +46,7 @@ module main #(
     wire [4:0] rs1    = instruction[19:15];
     wire [4:0] rs2    = instruction[24:20];
 
-    wire       reg_write, alu_src, mem_write, result_src;
+    wire       reg_write, alu_src, mem_write, result_src, branch;
     wire [1:0] imm_src;
     wire [2:0] alu_control;
 
@@ -64,7 +59,8 @@ module main #(
         .alu_src     (alu_src),
         .mem_write   (mem_write),
         .result_src  (result_src),
-        .alu_control (alu_control)
+        .alu_control (alu_control),
+        .branch      (branch)
     );
 
     wire [31:0] read_data1, read_data2, immediate;
@@ -100,6 +96,13 @@ module main #(
         .alu_result  (alu_result),
         .zero        (zero)
     );
+
+    wire [31:0] pc_next = (branch && zero) ? pc + immediate : pc_plus4;
+
+    always @(posedge clk) begin
+        if (rst) pc <= 32'b0;
+        else     pc <= pc_next;
+    end
 
     // ---------------- memory / write-back ----------------
     wire [31:0] mem_read_data;
