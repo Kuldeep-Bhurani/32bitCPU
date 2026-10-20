@@ -115,4 +115,18 @@ Both memories are 64 words (256 bytes) by default. Hex files are read from the c
 
 ## Validation note
 
-The instruction encodings and RTL wiring were statically checked while preparing this patch. Icarus Verilog was unavailable in the preparation environment, so run `make clean && make` locally before opening a pull request.
+The RTL and instruction encodings were validated with Icarus Verilog 11.0.
+
+The full regression suite was run locally on Windows using Icarus Verilog and VVP. All 8 testbenches passed:
+
+- `regfile_test`
+- `instruction_memory_test`
+- `data_memory_test`
+- `signext_test`
+- `alu_test`
+- `control_test`
+- `main_test`
+- `sw_test`
+
+The `sw_test` integration test specifically verifies all three `sw` instructions, including S-type immediate handling, effective-address calculation, memory writes, preservation of `x0`, and sequential PC behavior.
+
