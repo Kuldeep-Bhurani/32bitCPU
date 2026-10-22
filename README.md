@@ -1,11 +1,11 @@
-# 8bitcpu
+# 32bitcpu
 
 ---
 
 ## Project layout
 
 ```
-8BitCPU/
+32BitCPU/
 ├── main.v                  # top level: includes sub-modules and wires the datapath
 ├── regfile.v               # register file (x0 hard-wired to 0)
 ├── instruction_memory.v    # word-addressed ROM, loaded from a hex file
