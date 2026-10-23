@@ -1,5 +1,7 @@
 # 32bitcpu
 
+32 bit CPU simulation in Verilog HDL for DiSL mini project
+
 ---
 
 ## Project layout
